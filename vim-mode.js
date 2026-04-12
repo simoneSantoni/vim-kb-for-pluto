@@ -239,20 +239,26 @@
 
   // ---------- UI: mode indicator and editor classes ----------
   let indicatorEl = null;
+  let indicatorLabel = null;
+  const VIM_ICON_SVG =
+    '<svg class="pluto-vim-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+      '<path d="M12 2 L22 12 L12 22 L2 12 Z"/>' +
+    '</svg>';
   function ensureIndicator() {
     if (indicatorEl) return indicatorEl;
     indicatorEl = document.createElement('div');
     indicatorEl.className = 'pluto-vim-mode-indicator';
     indicatorEl.dataset.mode = MODE.NORMAL;
-    indicatorEl.textContent = '-- NORMAL --';
+    indicatorEl.innerHTML = VIM_ICON_SVG + '<span class="pluto-vim-label">-- NORMAL --</span>';
+    indicatorLabel = indicatorEl.querySelector('.pluto-vim-label');
     document.body.appendChild(indicatorEl);
     return indicatorEl;
   }
 
   function updateUI(editorEl, state) {
-    const el = ensureIndicator();
-    el.dataset.mode = state.mode;
-    el.textContent = `-- ${state.mode.replace('_', ' ')} --`;
+    ensureIndicator();
+    indicatorEl.dataset.mode = state.mode;
+    indicatorLabel.textContent = `-- ${state.mode.replace('_', ' ')} --`;
 
     editorEl.classList.add('pluto-vim-active');
     editorEl.classList.remove('vim-insert', 'vim-normal', 'vim-visual', 'vim-visual-line', 'vim-replace');
@@ -721,6 +727,7 @@
     document.querySelectorAll('.cm-editor').forEach(detach);
     if (indicatorEl && indicatorEl.parentNode) indicatorEl.parentNode.removeChild(indicatorEl);
     indicatorEl = null;
+    indicatorLabel = null;
     closeCmdline();
   }
 
