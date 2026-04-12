@@ -2,14 +2,19 @@
 <!--
   Project icon for vim-kb-for-pluto.
   Based on the public-domain Vim icon by Yuri Samoilov
-  (https://commons.wikimedia.org/wiki/File:Icon-Vim.svg),
-  recolored with Julia's brand purple (#9558B2) in place of the original
-  Vim green, per the Julia logo graphics
-  (https://github.com/JuliaLang/julia-logo-graphics).
+  (https://commons.wikimedia.org/wiki/File:Icon-Vim.svg).
+  Diamond split into four faces, each painted with one of Julia's
+  official brand colors per JuliaLang/julia-logo-graphics:
+    purple #9558B2, red #CB3C33, green #389826, blue #4063D8.
+  The "Vim" letterforms are preserved from the original in light gray.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <g transform="translate(0,-796.36218)">
-    <path fill="#9558B2" d="M 128.02596,805.31213 8.0259779,926.7407 127.31168,1046.0264 l 120,-120.71427 -119.28572,-120 z"/>
+    <!-- Diamond corners: top, right, bottom, left; center ≈ (127.669, 925.848). -->
+    <polygon fill="#4063D8" points="127.669,925.848 128.02596,805.31213 247.31168,925.31213"/>
+    <polygon fill="#CB3C33" points="127.669,925.848 247.31168,925.31213 127.31168,1046.0264"/>
+    <polygon fill="#389826" points="127.669,925.848 127.31168,1046.0264 8.0259779,926.7407"/>
+    <polygon fill="#9558B2" points="127.669,925.848 8.0259779,926.7407 128.02596,805.31213"/>
     <path fill="#d0d0cf" d="m 26.24294,816.92274 -5,5 0,19.28572 5.446429,5.26785 7.232142,0.17858 0.178571,168.12501 7.142857,7.1429 22.142858,0 177.142853,-180.00006 0,-18.57143 -5,-5 -80,-0.71428 -5,7.14285 0,15.71429 5,6.42857 6.42857,0 -62.142855,60.00001 0.625005,-59.73215 7.14285,-10e-6 5.80357,-5.98214 0,-15.71429 -6.42857,-7.14286 -80.71428,-1.42857 0,10e-6 z"/>
     <path fill="#d0d0cf" d="m 136.90826,933.24978 4.28572,-3.57143 12.14285,0.35715 3.92857,3.92857 -4.28571,12.14286 -3.57143,3.21428 -12.64794,-0.14794 -3.42349,-4.13777 3.57143,-11.78572 z"/>
     <path fill="#d0d0cf" d="m 121.90826,956.10693 28.57143,0.35714 -15,45.00003 5.35714,0 -3.21428,8.9285 -26.78572,-0.3571 14.64286,-43.21429 -7.14286,0.35714 3.57143,-11.07142 z"/>
