@@ -44,6 +44,18 @@
 .pluto-vim-mode-indicator[data-mode="REPLACE"] {
   background-color: #e06c75;
 }
+.pluto-vim-mode-indicator[data-mode="NOTEBOOK"] {
+  background-color: #d19a66;
+  color: #282c34;
+}
+
+/* ---------- Notebook-mode active cell highlight ---------- */
+pluto-cell.pluto-vim-cell-active {
+  outline: 2px solid #d19a66;
+  outline-offset: 2px;
+  border-radius: 4px;
+  transition: outline-color 0.15s ease;
+}
 
 /* ---------- Per-cell mode bar (left border accent) ---------- */
 .cm-editor.pluto-vim-active {

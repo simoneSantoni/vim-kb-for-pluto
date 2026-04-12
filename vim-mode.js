@@ -20,6 +20,18 @@
     VISUAL_LINE: 'VISUAL_LINE',
     COMMAND: 'COMMAND',
     REPLACE: 'REPLACE',
+    NOTEBOOK: 'NOTEBOOK',
+  };
+
+  // Notebook-level (cross-cell) state. `mode === NOTEBOOK` means no cell is
+  // focused and keys operate on cells themselves; otherwise we're inside a
+  // cell and the per-editor state machine is in charge.
+  const nb = {
+    mode: null,          // null = inside a cell; NOTEBOOK = between cells
+    activeIndex: -1,
+    pendingG: false,
+    pendingOp: null,     // 'd' | 'y' | null
+    yanked: null,        // yanked cell source text
   };
 
   // ---------- Per-editor state ----------
@@ -279,6 +291,204 @@
     updateUI(editorEl, state);
   }
 
+  // ---------- Notebook (cell-level) navigation ----------
+  function allCells() {
+    return Array.from(document.querySelectorAll('pluto-cell'));
+  }
+
+  function cellOf(node) {
+    return node && node.closest ? node.closest('pluto-cell') : null;
+  }
+
+  function setNotebookBadge() {
+    ensureIndicator();
+    indicatorEl.dataset.mode = MODE.NOTEBOOK;
+    indicatorLabel.textContent = '-- NOTEBOOK --';
+  }
+
+  function clearCellHighlight() {
+    document.querySelectorAll('pluto-cell.pluto-vim-cell-active')
+      .forEach((c) => c.classList.remove('pluto-vim-cell-active'));
+  }
+
+  function highlightActiveCell() {
+    clearCellHighlight();
+    const cells = allCells();
+    const cell = cells[nb.activeIndex];
+    if (!cell) return;
+    cell.classList.add('pluto-vim-cell-active');
+    cell.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function enterNotebookMode() {
+    const cells = allCells();
+    if (!cells.length) return;
+    const active = document.activeElement;
+    const curCell = cellOf(active);
+    if (curCell) nb.activeIndex = cells.indexOf(curCell);
+    if (nb.activeIndex < 0 || nb.activeIndex >= cells.length) nb.activeIndex = 0;
+    nb.mode = MODE.NOTEBOOK;
+    nb.pendingG = false;
+    nb.pendingOp = null;
+    if (active && typeof active.blur === 'function') active.blur();
+    highlightActiveCell();
+    setNotebookBadge();
+  }
+
+  function exitNotebookMode(focusCell) {
+    nb.mode = null;
+    nb.pendingG = false;
+    nb.pendingOp = null;
+    clearCellHighlight();
+    const cells = allCells();
+    const cell = cells[nb.activeIndex];
+    if (focusCell && cell) {
+      const editor = cell.querySelector('.cm-editor');
+      const content = cell.querySelector('.cm-content');
+      if (content) content.focus();
+      if (editor) {
+        const s = getState(editor);
+        setMode(editor, s, MODE.NORMAL);
+      }
+    } else if (cell) {
+      const editor = cell.querySelector('.cm-editor');
+      if (editor) updateUI(editor, getState(editor));
+    }
+  }
+
+  function moveActiveCell(delta) {
+    const cells = allCells();
+    if (!cells.length) return;
+    nb.activeIndex = Math.max(0, Math.min(cells.length - 1, nb.activeIndex + delta));
+    highlightActiveCell();
+  }
+
+  function gotoCell(index) {
+    const cells = allCells();
+    if (!cells.length) return;
+    nb.activeIndex = Math.max(0, Math.min(cells.length - 1, index));
+    highlightActiveCell();
+  }
+
+  function activeCell() {
+    return allCells()[nb.activeIndex];
+  }
+
+  // Best-effort DOM operations against Pluto's cell UI. Selectors cover a few
+  // Pluto versions; if a control can't be found we do nothing rather than
+  // guess and break the notebook.
+  function findButton(cell, keywords) {
+    const buttons = cell.querySelectorAll('button');
+    for (const b of buttons) {
+      const label = (b.getAttribute('title') || b.getAttribute('aria-label') || b.textContent || '').toLowerCase();
+      if (keywords.every((k) => label.includes(k))) return b;
+    }
+    return null;
+  }
+
+  function addCellBelow() {
+    const cell = activeCell();
+    if (!cell) return;
+    const btn =
+      cell.querySelector('button.add_cell.after, .add_cell_button.after') ||
+      findButton(cell, ['add', 'below']) ||
+      findButton(cell, ['add', 'after']);
+    if (btn) btn.click();
+  }
+
+  function addCellAbove() {
+    const cell = activeCell();
+    if (!cell) return;
+    const btn =
+      cell.querySelector('button.add_cell.before, .add_cell_button.before') ||
+      findButton(cell, ['add', 'above']) ||
+      findButton(cell, ['add', 'before']);
+    if (btn) btn.click();
+  }
+
+  function yankActiveCell() {
+    const cell = activeCell();
+    if (!cell) return;
+    const editor = cell.querySelector('.cm-editor');
+    const view = editor && getView(editor);
+    nb.yanked = view
+      ? view.state.doc.toString()
+      : (cell.querySelector('.cm-content')?.textContent || '');
+  }
+
+  function deleteActiveCell() {
+    const cell = activeCell();
+    if (!cell) return;
+    const btn =
+      cell.querySelector('button.delete_cell, .delete_cell') ||
+      findButton(cell, ['delete']);
+    if (btn) btn.click();
+  }
+
+  function pasteCellRelative(direction) {
+    if (nb.yanked == null) return;
+    const cell = activeCell();
+    if (!cell) return;
+    direction > 0 ? addCellBelow() : addCellAbove();
+    // After Pluto inserts the cell, fill it on the next frame once its
+    // CodeMirror is attached.
+    requestAnimationFrame(() => {
+      const cells = allCells();
+      const idx = cells.indexOf(cell);
+      const newIdx = direction > 0 ? idx + 1 : idx;
+      const target = cells[newIdx] || cells[idx];
+      if (!target) return;
+      const editor = target.querySelector('.cm-editor');
+      const view = editor && getView(editor);
+      if (view) {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: nb.yanked },
+        });
+      }
+      nb.activeIndex = newIdx;
+      highlightActiveCell();
+    });
+  }
+
+  function handleNotebookKey(e) {
+    if (nb.mode !== MODE.NOTEBOOK) return;
+    // Don't hijack when the user is typing in an input, textarea, or
+    // contenteditable (e.g. Pluto's own dialogs or our cmdline).
+    const a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) return;
+
+    const k = e.key;
+    const consume = () => { e.preventDefault(); e.stopPropagation(); };
+
+    if (k === 'j' || k === 'ArrowDown') { consume(); moveActiveCell(1); nb.pendingG = false; return; }
+    if (k === 'k' || k === 'ArrowUp')   { consume(); moveActiveCell(-1); nb.pendingG = false; return; }
+    if (k === 'G')                      { consume(); gotoCell(allCells().length - 1); nb.pendingG = false; return; }
+    if (k === 'g') {
+      consume();
+      if (nb.pendingG) { gotoCell(0); nb.pendingG = false; }
+      else nb.pendingG = true;
+      return;
+    }
+    nb.pendingG = false;
+
+    if (k === 'Enter' || k === 'i') { consume(); exitNotebookMode(true); return; }
+    if (k === 'Escape') { consume(); return; } // stay in notebook mode
+
+    if (nb.pendingOp === 'y' && k === 'y') { consume(); yankActiveCell(); nb.pendingOp = null; return; }
+    if (nb.pendingOp === 'd' && k === 'd') { consume(); deleteActiveCell(); nb.pendingOp = null; return; }
+    if (k === 'y' || k === 'd') { consume(); nb.pendingOp = k; return; }
+    nb.pendingOp = null;
+
+    if (k === 'o') { consume(); addCellBelow(); return; }
+    if (k === 'O') { consume(); addCellAbove(); return; }
+    if (k === 'p') { consume(); pasteCellRelative(1); return; }
+    if (k === 'P') { consume(); pasteCellRelative(-1); return; }
+
+    // Block other printable keys from reaching the page so stray typing
+    // doesn't leak into Pluto's toolbar / shortcuts.
+    if (k.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) consume();
+  }
+
   // ---------- Operators ----------
   function resolveMotion(editorEl, state, key, count) {
     const pos = getCursor(editorEl);
@@ -466,16 +676,23 @@
 
     const count = state.pendingCount ? parseInt(state.pendingCount, 10) : 1;
 
-    // Escape clears pending state
+    // Escape: clears pending state, exits visual, or — when already in a
+    // clean Normal — drops to Notebook mode (cell-level navigation).
     if (key === 'Escape' || (e.ctrlKey && key === '[')) {
       e.preventDefault();
       e.stopPropagation();
+      const hadPending = state.pendingOp || state.pendingCount || state.pendingG || state.pendingFind;
       state.pendingOp = null;
       state.pendingCount = '';
       state.pendingG = false;
+      state.pendingFind = null;
       if (state.mode === MODE.VISUAL || state.mode === MODE.VISUAL_LINE) {
         setMode(editorEl, state, MODE.NORMAL);
         setCursor(editorEl, getCursor(editorEl));
+        return;
+      }
+      if (state.mode === MODE.NORMAL && !hadPending) {
+        enterNotebookMode();
       }
       return;
     }
@@ -741,12 +958,15 @@
     attachAll();
     observer = new MutationObserver(() => attachAll());
     observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('keydown', handleNotebookKey, true);
   }
 
   function disable() {
     if (!enabled) return;
     enabled = false;
     if (observer) { observer.disconnect(); observer = null; }
+    document.removeEventListener('keydown', handleNotebookKey, true);
+    if (nb.mode === MODE.NOTEBOOK) exitNotebookMode(false);
     detachAll();
   }
 

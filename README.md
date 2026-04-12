@@ -11,6 +11,21 @@ Chrome extension bringing Vim key bindings to Julia's [Pluto](https://plutojl.or
 
 ## Supported bindings
 
+### Cell (Notebook) mode
+
+Press `Esc` from a clean Normal mode (no pending operator/count) to leave the cell and enter Notebook mode. The active cell is outlined and the badge switches to `NOTEBOOK`.
+
+- `j` / `k` — next / previous cell (arrow keys also work)
+- `gg` / `G` — first / last cell
+- `Enter` or `i` — focus the current cell (return to Normal mode inside it)
+- `yy` — yank the current cell's source
+- `p` / `P` — paste the yanked source into a new cell below / above
+- `o` / `O` — insert a new cell below / above (best-effort via Pluto's buttons)
+- `dd` — delete the current cell (best-effort)
+- `Esc` — stays in Notebook mode
+
+### Inside a cell
+
 - **Modes:** Normal, Insert, Visual, Visual Line, Command, Replace.
 - **Motions:** `h j k l`, `w b e`, `0 ^ $`, `gg G`, `f F t T` + `;`, counts (`5j`, `3w`, ...).
 - **Operators:** `d`, `c`, `y` combined with motions; `dd cc yy`; `D C Y`; `x`.
