@@ -21,10 +21,10 @@
 }
 
 .pluto-vim-mode-indicator .pluto-vim-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
-  color: currentColor;
+  display: block;
 }
 
 .pluto-vim-mode-indicator[data-mode="NORMAL"] {
