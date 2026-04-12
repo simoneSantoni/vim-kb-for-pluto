@@ -4,10 +4,7 @@
   bottom: 12px;
   left: 12px;
   z-index: 99999;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px 4px 8px;
+  padding: 4px 12px;
   border-radius: 4px;
   font-family: "JuliaMono", "JetBrains Mono", "Fira Code", monospace;
   font-size: 12px;
@@ -20,12 +17,6 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-.pluto-vim-mode-indicator .pluto-vim-icon {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-  display: block;
-}
 
 .pluto-vim-mode-indicator[data-mode="NORMAL"] {
   background-color: #4a90d9;
